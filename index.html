@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Site Punch List · Contractor Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="locked">
+
+<!-- Auth / login screen -->
+<div id="authOverlay" class="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <span class="auth-mark" id="authMark"></span>
+      <div>
+        <h1>Site Punch List</h1>
+        <span class="auth-sub" id="authModeLabel">Sign in to continue</span>
+      </div>
+      <span class="auth-badge" id="authBadge"></span>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabSignIn" type="button">Sign in</button>
+      <button class="auth-tab" id="tabSignUp" type="button">Create account</button>
+    </div>
+    <form id="authForm" class="auth-form" autocomplete="on">
+      <div class="field">
+        <label for="authEmail">Email</label>
+        <input type="email" id="authEmail" autocomplete="username" placeholder="you@email.com" required>
+      </div>
+      <div class="field">
+        <label for="authPassword">Password</label>
+        <input type="password" id="authPassword" autocomplete="current-password" placeholder="Your password" required>
+      </div>
+      <div class="field" id="authRoleField" style="display:none;">
+        <label>I am the…</label>
+        <div class="segmented seg3" id="authRoleSeg" role="group" aria-label="Role">
+          <button type="button" class="seg active" data-val="owner">Owner</button>
+          <button type="button" class="seg" data-val="consultant">Consultant</button>
+          <button type="button" class="seg" data-val="contractor">Contractor</button>
+        </div>
+        <small class="auth-hint">Owner runs the project &amp; approves members. Consultant manages the punch list. Contractor responds (comments, ETA, progress photos).</small>
+      </div>
+      <div class="field" id="authProjectNameField" style="display:none;">
+        <label for="authProjectName">New project name</label>
+        <input type="text" id="authProjectName" placeholder="e.g. Villa 12 — Al Barari" autocomplete="off">
+      </div>
+      <div class="field" id="authProjectCodeField" style="display:none;">
+        <label for="authProjectCode">Project join code</label>
+        <input type="text" id="authProjectCode" placeholder="6-char code from the owner" autocomplete="off">
+      </div>
+      <div class="auth-error" id="authError" role="alert"></div>
+      <button type="submit" class="btn btn-primary auth-submit" id="authSubmit">Sign in</button>
+    </form>
+    <div class="auth-foot" id="authFoot"></div>
+    <button class="cloud-toggle" id="cloudToggle" type="button"><span class="ico" data-ico="cloud"></span><span>Connect cloud (Supabase) for multi-device sync</span><span class="ico cl-chev" data-ico="chevron-down"></span></button>
+    <div class="cloud-panel" id="cloudPanel" hidden>
+      <p class="cloud-help">Create a free project at <b>supabase.com</b>, run <b>supabase-schema.sql</b> in its SQL editor, then paste your keys (Settings → API). Full steps in <b>README-cloud-setup.md</b>.</p>
+      <div class="field"><label for="cloudUrl">Project URL</label><input type="text" id="cloudUrl" placeholder="https://xxxx.supabase.co" autocomplete="off"></div>
+      <div class="field"><label for="cloudKey">Anon / public key</label><input type="text" id="cloudKey" placeholder="eyJhbGci..." autocomplete="off"></div>
+      <div class="cloud-status" id="cloudStatus"></div>
+      <div class="cloud-actions">
+        <button class="btn btn-ghost sm" id="cloudDisconnectBtn" type="button">Disconnect</button>
+        <button class="btn btn-primary sm" id="cloudConnectBtn" type="button">Test &amp; connect</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Pending approval screen -->
+<div id="pendingOverlay" class="pending-overlay">
+  <div class="pending-card">
+    <span class="pending-ico"><span class="ico" data-ico="clock"></span></span>
+    <h2>Waiting for approval</h2>
+    <p>Your request to join the project has been sent. The project owner or admin will approve your access shortly. You're signed in as <b id="pendingEmail"></b>.</p>
+    <button class="btn btn-outline" id="pendingSignOut" type="button"><span class="ico" data-ico="logout"></span><span>Sign out</span></button>
+  </div>
+</div>
+
+<header class="app-header">
+  <div class="brand">
+    <span class="brand-mark" id="brandMark"></span>
+    <div class="brand-text">
+      <h1>Site Punch List</h1>
+      <span class="subtitle">Track unfinished work &middot; document &middot; escalate</span>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button id="darkToggle" class="btn btn-ghost" aria-label="Toggle dark mode"><span class="ico" data-ico="moon"></span><span class="btn-label">Dark</span></button>
+    <button id="exportPdfBtn" class="btn btn-outline"><span class="ico" data-ico="download"></span><span class="btn-label">Export PDF</span></button>
+    <button id="addItemBtn" class="btn btn-primary need-add"><span class="ico" data-ico="plus"></span><span class="btn-label">Add Item</span></button>
+    <div class="menu-wrap">
+      <button id="moreBtn" class="btn btn-ghost icon-only" aria-label="More options" aria-haspopup="true" aria-expanded="false"><span class="ico" data-ico="more"></span></button>
+      <div class="menu" id="moreMenu" role="menu" hidden>
+        <div class="menu-user" id="menuUser"></div>
+        <button class="menu-item need-manage" id="membersBtn" role="menuitem">
+          <span class="ico" data-ico="users"></span>
+          <span class="mi-text"><strong>Members &amp; approvals</strong><small>Approve/reject &amp; share join code</small></span>
+        </button>
+        <button class="menu-item need-super" id="adminBtn" role="menuitem">
+          <span class="ico" data-ico="shield"></span>
+          <span class="mi-text"><strong>Admin panel</strong><small>All projects, users &amp; approvals</small></span>
+        </button>
+        <div class="menu-label">Backup &amp; restore</div>
+        <button class="menu-item" id="exportBackupBtn" role="menuitem">
+          <span class="ico" data-ico="database"></span>
+          <span class="mi-text"><strong>Export Backup</strong><small>Save all data &amp; photos to a file</small></span>
+        </button>
+        <button class="menu-item need-import" id="importBackupBtn" role="menuitem">
+          <span class="ico" data-ico="upload"></span>
+          <span class="mi-text"><strong>Import Backup</strong><small>Restore or merge from a file</small></span>
+        </button>
+        <div class="menu-sep"></div>
+        <button class="menu-item danger" id="signOutBtn" role="menuitem">
+          <span class="ico" data-ico="logout"></span>
+          <span class="mi-text"><strong>Sign out</strong><small id="signOutWho"></small></span>
+        </button>
+      </div>
+      <input type="file" id="importFileInput" accept="application/json,.json" hidden>
+    </div>
+  </div>
+</header>
+
+<section class="project-banner" id="projectBanner"></section>
+
+<section class="dashboard" id="dashboard"></section>
+
+<section class="toolbar">
+  <div class="search-wrap">
+    <span class="ico search-ico" data-ico="search"></span>
+    <input type="text" id="searchInput" placeholder="Search room, description, or contact…" aria-label="Search">
+  </div>
+
+  <div class="filters">
+    <div class="select-wrap"><select id="filterRoom" aria-label="Filter by room"><option value="">All Rooms</option></select></div>
+    <div class="select-wrap"><select id="filterType" aria-label="Filter by job type">
+      <option value="">All Job Types</option>
+      <option>General Construction</option>
+      <option>Painting</option>
+      <option>Electrical</option>
+      <option>Camera</option>
+      <option>Plumbing</option>
+      <option>Others</option>
+    </select></div>
+    <div class="select-wrap"><select id="filterStatus" aria-label="Filter by status">
+      <option value="">All Status</option>
+      <option>Not Done</option>
+      <option>Partially Done</option>
+      <option>Completed</option>
+    </select></div>
+    <div class="select-wrap"><select id="filterPriority" aria-label="Filter by priority">
+      <option value="">All Priority</option>
+      <option>High</option>
+      <option>Medium</option>
+      <option>Low</option>
+    </select></div>
+    <div class="select-wrap"><select id="sortBy" aria-label="Sort by">
+      <option value="priority">Sort: Priority</option>
+      <option value="room">Sort: Room</option>
+      <option value="type">Sort: Job Type</option>
+      <option value="status">Sort: Status</option>
+      <option value="updated">Sort: Last Updated</option>
+    </select></div>
+  </div>
+
+  <div class="view-toggle" role="group" aria-label="View mode">
+    <button id="cardViewBtn" class="view-btn active" aria-label="Card view"><span class="ico" data-ico="grid"></span></button>
+    <button id="tableViewBtn" class="view-btn" aria-label="Table view"><span class="ico" data-ico="list"></span></button>
+  </div>
+</section>
+
+<div class="active-filters" id="activeFilters"></div>
+
+<main id="itemsContainer" class="cards-view" aria-live="polite"></main>
+
+<div id="emptyState" class="empty-state" style="display:none;">
+  <span class="ico empty-ico" data-ico="clipboard"></span>
+  <h2>No items yet</h2>
+  <p>Start documenting unfinished work. Add a room, snap photos, set status &amp; priority — then export a clean PDF to escalate.</p>
+  <button class="btn btn-primary need-add" id="emptyAddBtn"><span class="ico" data-ico="plus"></span><span class="btn-label">Add your first item</span></button>
+</div>
+
+<div id="noMatchState" class="empty-state" style="display:none;">
+  <span class="ico empty-ico" data-ico="search"></span>
+  <h2>No matches</h2>
+  <p>No items match your current filters.</p>
+  <button class="btn btn-outline" id="clearFiltersBtn2"><span class="btn-label">Clear filters</span></button>
+</div>
+
+<!-- Add/Edit Modal -->
+<div id="itemModal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Add Item</h2>
+      <button class="icon-btn close-btn" id="closeModalBtn" aria-label="Close"><span class="ico" data-ico="x"></span></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="itemId">
+
+      <div class="field">
+        <label for="itemRoom">Room / Area <span class="req">*</span></label>
+        <input type="text" id="itemRoom" list="roomSuggestions" placeholder="e.g. Master Bathroom" autocomplete="off">
+        <datalist id="roomSuggestions"></datalist>
+      </div>
+
+      <div class="field">
+        <label for="itemDescription">Description</label>
+        <textarea id="itemDescription" rows="3" placeholder="What was supposed to be done, and what is wrong or missing"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="itemType">Type of Work</label>
+        <div class="select-wrap full"><select id="itemType">
+          <option>General Construction</option>
+          <option>Painting</option>
+          <option>Electrical</option>
+          <option>Camera</option>
+          <option>Plumbing</option>
+          <option>Others</option>
+        </select></div>
+        <input type="text" id="itemTypeOther" placeholder="Describe the work type" style="display:none; margin-top:8px;">
+      </div>
+
+      <div class="field">
+        <label>Status</label>
+        <div class="segmented" id="statusSeg" role="group" aria-label="Status">
+          <button type="button" data-val="Not Done" class="seg seg-status status-Not-Done">Not Done</button>
+          <button type="button" data-val="Partially Done" class="seg seg-status status-Partially-Done">Partially Done</button>
+          <button type="button" data-val="Completed" class="seg seg-status status-Completed">Completed</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Priority</label>
+        <div class="segmented" id="prioritySeg" role="group" aria-label="Priority">
+          <button type="button" data-val="High" class="seg seg-pri pri-High">High</button>
+          <button type="button" data-val="Medium" class="seg seg-pri pri-Medium">Medium</button>
+          <button type="button" data-val="Low" class="seg seg-pri pri-Low">Low</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="itemContact">Who Was Contacted</label>
+        <input type="text" id="itemContact" placeholder="e.g. Mike (GC) — texted 6/24">
+      </div>
+
+      <div class="field">
+        <label for="itemExpectedDate">Expected Completion Date <span class="hint-inline" id="expectedHint">ETA for this work</span></label>
+        <input type="date" id="itemExpectedDate">
+      </div>
+
+      <div class="field">
+        <label>Original Photos / Videos <span class="hint-inline">problem evidence</span></label>
+        <div class="dropzone" id="beforeDrop" data-target="before">
+          <span class="ico" data-ico="camera"></span>
+          <span class="dz-text">Tap to add <b>one or more</b> photos / videos — or drag them here</span>
+          <input type="file" id="itemPhotosBefore" accept="image/*,video/*" multiple>
+        </div>
+        <div class="thumb-row" id="beforeThumbs"></div>
+      </div>
+
+      <div class="field">
+        <label>Updated Photos / Videos <span class="hint-inline">after follow-up</span></label>
+        <div class="dropzone" id="afterDrop" data-target="after">
+          <span class="ico" data-ico="camera"></span>
+          <span class="dz-text">Tap to add <b>one or more</b> photos / videos — or drag them here</span>
+          <input type="file" id="itemPhotosAfter" accept="image/*,video/*" multiple>
+        </div>
+        <div class="thumb-row" id="afterThumbs"></div>
+      </div>
+
+      <div class="field">
+        <label>Activity / Escalation Log</label>
+        <div class="history-add-row">
+          <input type="text" id="historyNoteInput" placeholder="Add a dated note (e.g. 'Emailed contractor again')">
+          <button id="addHistoryBtn" class="btn btn-outline" type="button"><span class="ico" data-ico="plus"></span></button>
+        </div>
+        <ul class="history-list" id="historyList"></ul>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="deleteItemBtn" class="btn btn-danger"><span class="ico" data-ico="trash"></span><span class="btn-label">Delete</span></button>
+      <div class="footer-right">
+        <button id="cancelItemBtn" class="btn btn-ghost" type="button">Cancel</button>
+        <button id="saveItemBtn" class="btn btn-primary"><span class="ico" data-ico="check"></span><span class="btn-label">Save Item</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Project / Document details Modal -->
+<div id="projectModal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="projectModalTitle">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="projectModalTitle">Project &amp; Document Details</h2>
+      <button class="icon-btn close-btn" id="closeProjectBtn" aria-label="Close"><span class="ico" data-ico="x"></span></button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="pDocTitle">Document Title</label>
+        <input type="text" id="pDocTitle" placeholder="e.g. Snagging &amp; Punch List Report">
+      </div>
+      <div class="field">
+        <label for="pDocDesc">Document Description <span class="hint-inline">what this document is</span></label>
+        <textarea id="pDocDesc" rows="3" placeholder="e.g. A record of outstanding and defective works identified during site inspection, issued to the contractor for rectification."></textarea>
+      </div>
+      <div class="field">
+        <label for="pProject">Project Name</label>
+        <input type="text" id="pProject" placeholder="e.g. Al Barari Villas — Phase 2">
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="pVilla">Villa / Unit / Property</label>
+          <input type="text" id="pVilla" placeholder="e.g. Villa 12">
+        </div>
+        <div class="field">
+          <label for="pLocation">Location</label>
+          <input type="text" id="pLocation" placeholder="e.g. Dubai, UAE">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="pClient">Client / Prepared For</label>
+          <input type="text" id="pClient" placeholder="e.g. Mr. Ahmed">
+        </div>
+        <div class="field">
+          <label for="pBy">Prepared By</label>
+          <input type="text" id="pBy" placeholder="e.g. inspector name">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="pDate">Report Date</label>
+          <input type="date" id="pDate">
+        </div>
+        <div class="field">
+          <label for="pRef">Reference / No.</label>
+          <input type="text" id="pRef" placeholder="e.g. PL-2026-001">
+        </div>
+      </div>
+      <div class="field">
+        <label>Project / Site Photos <span class="hint-inline">optional · add multiple (cover, site plan, elevations)</span></label>
+        <div class="dropzone" id="pPhotoDrop">
+          <span class="ico" data-ico="camera"></span>
+          <span class="dz-text">Tap to add <b>one or more</b> photos — or drag them here</span>
+          <input type="file" id="pPhotos" accept="image/*,video/*" multiple>
+        </div>
+        <div class="thumb-row" id="pThumbs"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="clearProjectBtn" class="btn btn-danger"><span class="ico" data-ico="trash"></span><span class="btn-label">Clear</span></button>
+      <div class="footer-right">
+        <button id="cancelProjectBtn" class="btn btn-ghost" type="button">Cancel</button>
+        <button id="saveProjectBtn" class="btn btn-primary"><span class="ico" data-ico="check"></span><span class="btn-label">Save Details</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Members & approvals -->
+<div id="membersModal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="membersTitle">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="membersTitle">Members</h2>
+      <button class="icon-btn close-btn" id="closeMembersBtn" aria-label="Close"><span class="ico" data-ico="x"></span></button>
+    </div>
+    <div class="modal-body">
+      <div class="members-code" id="membersCode"></div>
+      <div id="membersList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Super Admin panel -->
+<div id="adminModal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="adminTitle">Admin panel</h2>
+      <button class="icon-btn close-btn" id="closeAdminBtn" aria-label="Close"><span class="ico" data-ico="x"></span></button>
+    </div>
+    <div class="modal-body" id="adminBody"></div>
+  </div>
+</div>
+
+<!-- Lightbox gallery -->
+<div id="lightbox" class="lightbox" style="display:none;" role="dialog" aria-modal="true" aria-label="Media viewer">
+  <button class="lightbox-btn lightbox-close" id="lightboxClose" aria-label="Close"><span class="ico" data-ico="x"></span></button>
+  <button class="lightbox-btn lightbox-prev" id="lightboxPrev" aria-label="Previous"><span class="ico" data-ico="chevron-left"></span></button>
+  <div id="lightboxContent"></div>
+  <button class="lightbox-btn lightbox-next" id="lightboxNext" aria-label="Next"><span class="ico" data-ico="chevron-right"></span></button>
+  <div class="lightbox-counter" id="lightboxCounter"></div>
+</div>
+
+<!-- Toasts -->
+<div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+<!-- Hidden printable report -->
+<div id="printArea" class="print-area"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="backend.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

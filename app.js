@@ -88,14 +88,73 @@ function fileToMedia(file){
 function fmtDate(ts){ return ts ? new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : ''; }
 function fmtDateTime(){ return new Date().toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
 
+/* ---------- branded video intro ---------- */
+let introCloseTimer=null;
+function setupBrandVideo(){
+  const overlay=$('introOverlay'), video=$('introVideo'), bg=$('loginBgVideo');
+  if(!overlay||!video) return;
+
+  if(bg){
+    bg.muted=true; bg.volume=0;
+    bg.addEventListener('volumechange',()=>{ if(!bg.muted||bg.volume!==0){ bg.muted=true; bg.volume=0; } });
+    bg.play().catch(()=>{});
+  }
+
+  $('introSoundBtn').onclick=()=>{
+    if(!overlay.classList.contains('show')) return playIntro(true);
+    video.muted=false; video.volume=1;
+    video.play().then(()=>setIntroSoundState(true)).catch(()=>setIntroSoundState(false));
+  };
+  $('introSkipBtn').onclick=closeIntro;
+  video.addEventListener('ended',closeIntro);
+  document.querySelectorAll('[data-replay-intro]').forEach(btn=>btn.addEventListener('click',()=>playIntro(true)));
+
+  // Try the requested sound-first intro. Browsers that require a gesture
+  // automatically fall back to muted playback and expose the sound button.
+  requestAnimationFrame(()=>playIntro(true));
+}
+function setIntroSoundState(on){
+  const btn=$('introSoundBtn'); if(!btn) return;
+  btn.innerHTML=on
+    ? '<span class="intro-sound-icon">♪</span><span>Sound on</span>'
+    : '<span class="intro-sound-icon">♪</span><span>Play with sound</span>';
+  btn.classList.toggle('sound-on',on);
+}
+function playIntro(withSound=true){
+  const overlay=$('introOverlay'), video=$('introVideo'), bg=$('loginBgVideo');
+  if(!overlay||!video) return;
+  if(introCloseTimer){ clearTimeout(introCloseTimer); introCloseTimer=null; }
+  overlay.classList.remove('leaving'); overlay.classList.add('show'); overlay.removeAttribute('aria-hidden');
+  if(bg) bg.pause();
+  try{ video.currentTime=0; }catch(e){}
+  video.muted=!withSound; video.volume=withSound?1:0;
+  setIntroSoundState(withSound);
+  const attempt=video.play();
+  if(attempt) attempt.catch(()=>{
+    video.muted=true; video.volume=0; setIntroSoundState(false);
+    video.play().catch(closeIntro);
+  });
+}
+function closeIntro(){
+  const overlay=$('introOverlay'), video=$('introVideo'), bg=$('loginBgVideo');
+  if(!overlay||!overlay.classList.contains('show')) return;
+  overlay.classList.add('leaving');
+  introCloseTimer=setTimeout(()=>{
+    video.pause(); overlay.classList.remove('show','leaving'); overlay.setAttribute('aria-hidden','true');
+    if(bg){ bg.muted=true; bg.volume=0; bg.play().catch(()=>{}); }
+    introCloseTimer=null;
+  },440);
+}
+
 /* ---------- init + auth ---------- */
 let authMode='signin', authRole='owner';
 (async function init(){
   hydrateIcons();
-  $('brandMark').innerHTML = iconSvg('hardhat');
-  $('authMark').innerHTML = iconSvg('hardhat');
+  if($('brandMark')) $('brandMark').innerHTML = iconSvg('hardhat');
+  if($('authMark')) $('authMark').innerHTML = iconSvg('hardhat');
   applyTheme();
   setupAuthUI();
+  setupBrandVideo();
   await Auth.init();
   Auth.onChange(u=>{ if(!u) document.body.classList.add('locked'); });
   if(Auth.user()) startApp(); else showAuth();
@@ -205,6 +264,7 @@ function setupAuthUI(){
     $('authRoleField').style.display = m==='signup' ? 'flex' : 'none';
     updateAuthRoleFields();
     $('authSubmit').textContent = m==='signin' ? 'Sign in' : 'Create account';
+    document.querySelector('.auth-brand h1').textContent = m==='signin' ? 'Welcome back' : 'Create your account';
     $('authModeLabel').textContent = m==='signin' ? 'Sign in to continue' : 'Create your account';
     $('authPassword').autocomplete = m==='signin' ? 'current-password' : 'new-password';
     hideAuthError();
@@ -224,6 +284,7 @@ function setupAuthUI(){
       if(authMode==='signup') await Auth.signUp({ email, password, role:authRole, projectName:$('authProjectName').value.trim(), projectCode:$('authProjectCode').value.trim() });
       else await Auth.signIn({email,password});
       await startApp();
+      playIntro(true);
       $('authForm').reset(); updateAuthRoleFields();
     }catch(err){ showAuthError(err.message||'Something went wrong'); }
     finally{ btn.disabled=false; btn.textContent=lbl; }

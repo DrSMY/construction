@@ -6,6 +6,9 @@
 (function(){
   const CFG = window.PUNCHLIST_CONFIG || {};
   const SUPER_ADMIN_EMAIL = (CFG.SUPER_ADMIN_EMAIL||'').trim().toLowerCase();
+  const DEMO_MODE = new URLSearchParams(window.location.search).get('demo') === '1';
+  const DEMO_EMAIL = 'demo@sitepunch.local';
+  const DEMO_PASSWORD = 'SitePunch123!';
 
   /* cloud credentials: in-app (localStorage) overrides config.js */
   function cloudCreds(){
@@ -14,7 +17,7 @@
     return null;
   }
   const CREDS = cloudCreds();
-  const USE_SUPABASE = !!(CREDS && /^https?:\/\//.test(CREDS.url));
+  const USE_SUPABASE = !DEMO_MODE && !!(CREDS && /^https?:\/\//.test(CREDS.url));
   window.BACKEND_MODE = USE_SUPABASE ? 'cloud' : 'local';
 
   /* ---------- configurable capabilities (super-admin editable) ---------- */
@@ -97,6 +100,10 @@
     return {
       async init(){
         await open(); await migrateLegacy();
+        if(DEMO_MODE && !(await get('users',DEMO_EMAIL))){
+          const s=salt();
+          await put('users',{ email:DEMO_EMAIL, salt:s, hash:await sha(s+DEMO_PASSWORD), superAdmin:true, createdAt:Date.now() });
+        }
         try{ const s=JSON.parse(localStorage.getItem(SKEY)||'null'); if(s&&s.email) _user=s; }catch(e){}
         if(_user){ const u=await get('users',_user.email); if(!u) _user=null; else _user={email:u.email,superAdmin:!!u.superAdmin}; }
       },

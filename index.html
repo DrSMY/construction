@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Site Punch List · Contractor Tracker</title>
+<title>SitePunch · From defect to done</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -11,13 +11,48 @@
 </head>
 <body class="locked">
 
+<!-- Branded intro / logo replay -->
+<div id="introOverlay" class="intro-overlay" aria-label="SitePunch introduction">
+  <video id="introVideo" class="intro-video" src="assets/sitepunch-intro.mp4" preload="auto" playsinline></video>
+  <div class="intro-controls">
+    <button id="introSoundBtn" class="intro-control" type="button"><span class="intro-sound-icon">♪</span><span>Play with sound</span></button>
+    <button id="introSkipBtn" class="intro-control intro-skip" type="button">Skip intro</button>
+  </div>
+</div>
+
 <!-- Auth / login screen -->
 <div id="authOverlay" class="auth-overlay">
+  <video id="loginBgVideo" class="auth-bg-video" src="assets/sitepunch-intro.mp4" autoplay muted loop playsinline preload="auto" aria-hidden="true"></video>
+  <div class="auth-video-veil" aria-hidden="true"></div>
+  <aside class="auth-showcase" aria-label="Product overview">
+    <div class="auth-showcase-inner">
+      <div class="showcase-brand"><button class="logo-replay" type="button" data-replay-intro aria-label="Replay SitePunch introduction"><img src="assets/sitepunch-logo.png" alt="SitePunch"></button><span>From defect to done.</span></div>
+      <div class="showcase-copy">
+        <span class="showcase-kicker">Built for the jobsite</span>
+        <h2>Close every detail.<br><span>Hand over with confidence.</span></h2>
+        <p>Capture defects, assign ownership, and keep a visual record from first inspection to final sign-off.</p>
+      </div>
+      <div class="showcase-preview" aria-hidden="true">
+        <div class="preview-top"><span>Project health</span><strong>72%</strong></div>
+        <div class="preview-progress"><span></span></div>
+        <div class="preview-stats">
+          <div><strong>24</strong><span>Open items</span></div>
+          <div><strong>11</strong><span>In progress</span></div>
+          <div><strong>87</strong><span>Completed</span></div>
+        </div>
+      </div>
+      <div class="showcase-points">
+        <span><i class="ico" data-ico="camera"></i>Photo evidence</span>
+        <span><i class="ico" data-ico="users"></i>Clear ownership</span>
+        <span><i class="ico" data-ico="download"></i>Ready-to-send reports</span>
+      </div>
+    </div>
+  </aside>
   <div class="auth-card">
     <div class="auth-brand">
-      <span class="auth-mark" id="authMark"></span>
+      <button class="auth-mark logo-replay" type="button" data-replay-intro aria-label="Replay SitePunch introduction"><img src="assets/sitepunch-logo.png" alt="SitePunch"></button>
       <div>
-        <h1>Site Punch List</h1>
+        <h1>Welcome back</h1>
         <span class="auth-sub" id="authModeLabel">Sign in to continue</span>
       </div>
       <span class="auth-badge" id="authBadge"></span>
@@ -29,11 +64,11 @@
     <form id="authForm" class="auth-form" autocomplete="on">
       <div class="field">
         <label for="authEmail">Email</label>
-        <input type="email" id="authEmail" autocomplete="username" placeholder="you@email.com" required>
+        <input type="email" id="authEmail" autocomplete="username" placeholder="name@company.com" required>
       </div>
       <div class="field">
         <label for="authPassword">Password</label>
-        <input type="password" id="authPassword" autocomplete="current-password" placeholder="Your password" required>
+        <input type="password" id="authPassword" autocomplete="current-password" placeholder="Enter your password" required>
       </div>
       <div class="field" id="authRoleField" style="display:none;">
         <label>I am the…</label>
@@ -82,10 +117,9 @@
 
 <header class="app-header">
   <div class="brand">
-    <span class="brand-mark" id="brandMark"></span>
+    <button class="brand-mark logo-replay" type="button" data-replay-intro aria-label="Replay SitePunch introduction"><img src="assets/sitepunch-logo.png" alt="SitePunch"></button>
     <div class="brand-text">
-      <h1>Site Punch List</h1>
-      <span class="subtitle">Track unfinished work &middot; document &middot; escalate</span>
+      <span class="subtitle">From defect to done.</span>
     </div>
   </div>
   <div class="header-actions">

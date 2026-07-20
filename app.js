@@ -45,6 +45,8 @@ const ICONS = {
   'chevron-down':'<path d="m6 9 6 6 6-6"/>',
   layers:'<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
   users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  message:'<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8"/><path d="M8 13h5"/>',
+  wind:'<path d="M3 8h12a3 3 0 1 0-3-3"/><path d="M3 12h16a2 2 0 1 1-2 2"/><path d="M3 16h8"/>',
   copy:'<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>'
 };
 function iconSvg(name, attrs=''){
@@ -57,11 +59,12 @@ function hydrateIcons(root=document){
 
 const TYPE_ICON = {
   'General Construction':'hardhat', 'Painting':'roller', 'Electrical':'zap',
-  'Camera':'video', 'Plumbing':'droplet', 'Others':'wrench'
+  'Camera':'video', 'Plumbing':'droplet', 'HVAC':'wind', 'Joinery':'layers',
+  'Civil Works':'hardhat', 'Others':'wrench'
 };
 function typeIcon(type){ return TYPE_ICON[type] || 'wrench'; }
 function typeClass(type){
-  return ['General Construction','Painting','Electrical','Camera','Plumbing','Others'].includes(type)
+  return ['General Construction','Painting','Electrical','Camera','Plumbing','HVAC','Joinery','Civil Works','Others'].includes(type)
     ? 'type-'+type.replace(/\s+/g,'-') : 'type-Others';
 }
 
@@ -87,6 +90,24 @@ function fileToMedia(file){
 }
 function fmtDate(ts){ return ts ? new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : ''; }
 function fmtDateTime(){ return new Date().toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+function statusLabel(status){ return ({'Not Done':'Open','Partially Done':'In Progress','Ready for Inspection':'Ready for Inspection','Completed':'Closed'})[status]||status||'Open'; }
+function statusIconHTML(status){
+  if(status==='Partially Done') return '<span class="status-symbol rotating">↻</span>';
+  if(status==='Ready for Inspection') return '<span class="status-symbol inspection">◇</span>';
+  if(status==='Completed') return '<span class="status-symbol closed">✓</span>';
+  return '<span class="status-symbol open"></span>';
+}
+function locationBreadcrumb(item){
+  const root=(project&&(project.villa||project.name))||'Current Project';
+  return [root,item.room].filter(Boolean).map(esc).join('<span class="crumb-sep">/</span>');
+}
+function workflowRailHTML(item,compact=false){
+  const stages=[
+    ['Reported','clipboard'],['Assigned','user'],['In Progress','clock'],['Inspection','check-circle'],['Closed','check']
+  ];
+  const index= item.status==='Completed'?4 : item.status==='Ready for Inspection'?3 : item.status==='Partially Done'?2 : (item.contact?1:0);
+  return `<div class="workflow-rail ${compact?'compact':''}" aria-label="Issue workflow">${stages.map((s,i)=>`<div class="workflow-step ${i<index?'complete':i===index?'active':'pending'}"><span class="workflow-node">${iconSvg(s[1])}</span><span class="workflow-label">${s[0]}</span></div>`).join('')}</div>`;
+}
 
 /* ---------- branded video intro ---------- */
 let introCloseTimer=null;
@@ -379,7 +400,7 @@ function setView(m){
 function renderRoomFilter(){
   const rooms=[...new Set(items.map(i=>i.room).filter(Boolean))].sort();
   const cur=$('filterRoom').value;
-  $('filterRoom').innerHTML='<option value="">All Rooms</option>'+rooms.map(r=>`<option ${r===cur?'selected':''}>${esc(r)}</option>`).join('');
+  $('filterRoom').innerHTML='<option value="">Project / Location</option>'+rooms.map(r=>`<option ${r===cur?'selected':''}>${esc(r)}</option>`).join('');
   $('roomSuggestions').innerHTML=rooms.map(r=>`<option value="${esc(r)}">`).join('');
 }
 function getFiltered(){
@@ -390,7 +411,7 @@ function getFiltered(){
   if($('filterType').value) list=list.filter(i=>i.type===$('filterType').value);
   if($('filterStatus').value) list=list.filter(i=>i.status===$('filterStatus').value);
   if($('filterPriority').value) list=list.filter(i=>i.priority===$('filterPriority').value);
-  const pr={High:0,Medium:1,Low:2}, sr={'Not Done':0,'Partially Done':1,'Completed':2};
+  const pr={High:0,Medium:1,Low:2}, sr={'Not Done':0,'Partially Done':1,'Ready for Inspection':2,'Completed':3};
   const k=$('sortBy').value;
   list.sort((a,b)=>{
     if(k==='priority') return pr[a.priority]-pr[b.priority] || sr[a.status]-sr[b.status];
@@ -415,7 +436,8 @@ function renderActiveFilters(){
   wrap.style.display='flex';
   chips.forEach(c=>{
     const el=document.createElement('span'); el.className='fchip';
-    el.innerHTML=`${esc(c.label)}: ${esc(c.val)} <button aria-label="Remove filter">${iconSvg('x','width="14" height="14"')}</button>`;
+    const shown=c.id==='filterStatus'?statusLabel(c.val):c.val;
+    el.innerHTML=`${esc(shown)} <button aria-label="Remove filter">${iconSvg('x','width="14" height="14"')}</button>`;
     el.querySelector('button').onclick=()=>{ $(c.id).value=''; render(); };
     wrap.appendChild(el);
   });
@@ -448,38 +470,35 @@ function renderDashboard(){
   const total=items.length;
   const not=items.filter(i=>i.status==='Not Done').length;
   const part=items.filter(i=>i.status==='Partially Done').length;
+  const ready=items.filter(i=>i.status==='Ready for Inspection').length;
   const done=items.filter(i=>i.status==='Completed').length;
   const high=items.filter(i=>i.priority==='High'&&i.status!=='Completed').length;
   const pct=total?Math.round((done/total)*100):0;
-  const w=v=>total?(v/total*100):0;
   const af=id=>$(id).value;
+  const now=new Date(); now.setHours(0,0,0,0);
+  const weekEnd=new Date(now); weekEnd.setDate(weekEnd.getDate()+7);
+  const openItems=items.filter(i=>i.status!=='Completed');
+  const overdue=openItems.filter(i=>i.expectedDate&&new Date(i.expectedDate+'T00:00:00')<now).length;
+  const dueWeek=openItems.filter(i=>{ if(!i.expectedDate)return false; const d=new Date(i.expectedDate+'T00:00:00'); return d>=now&&d<=weekEnd; }).length;
+  const projects=Math.max(myProjectList.length,currentProjectId?1:0);
   $('dashboard').innerHTML=`
-    <div class="kpi kpi-progress">
-      <div class="pct-row"><span class="pct num">${pct}<span style="font-size:1rem">%</span></span><span class="pct-label">complete</span><span class="done-count num">${done}/${total} done</span></div>
-      <div class="stack-bar">
-        <span class="s-done" style="width:${w(done)}%"></span>
-        <span class="s-partial" style="width:${w(part)}%"></span>
-        <span class="s-not" style="width:${w(not)}%"></span>
-      </div>
-      <div class="stack-legend"><span><i style="background:var(--done)"></i>Completed</span><span><i style="background:var(--partial)"></i>Partial</span><span><i style="background:var(--not)"></i>Not done</span></div>
-    </div>
-    <button class="stat ${af('filterStatus')===''&&af('filterPriority')===''?'':''}" data-filter="all">
-      <div class="stat-top"><span class="stat-num num">${total}</span><span class="stat-ico" style="background:var(--surface-3);color:var(--text-2)">${iconSvg('listchecks')}</span></div>
-      <span class="stat-label">Total Items</span></button>
-    <button class="stat s-not ${af('filterStatus')==='Not Done'?'active':''}" data-filter="Not Done">
-      <div class="stat-top"><span class="stat-num num">${not}</span><span class="stat-ico">${iconSvg('alert')}</span></div>
-      <span class="stat-label">Not Done</span></button>
-    <button class="stat s-partial ${af('filterStatus')==='Partially Done'?'active':''}" data-filter="Partially Done">
-      <div class="stat-top"><span class="stat-num num">${part}</span><span class="stat-ico">${iconSvg('clock')}</span></div>
-      <span class="stat-label">Partially Done</span></button>
-    <button class="stat s-high ${af('filterPriority')==='High'?'active':''}" data-filter="High">
-      <div class="stat-top"><span class="stat-num num">${high}</span><span class="stat-ico">${iconSvg('flag')}</span></div>
-      <span class="stat-label">High Priority Open</span></button>
+    <button class="metric-card metric-primary ${af('filterStatus')==='Not Done'?'active':''}" data-filter="Not Done">
+      <span class="metric-kicker">Live issue load</span>
+      <div class="metric-main"><strong class="num">${openItems.length}</strong><span>Open Issues</span></div>
+      <div class="metric-foot"><span class="metric-alert">${overdue} overdue</span><span>${high} high priority</span></div>
+      <svg class="trend-line" viewBox="0 0 220 44" preserveAspectRatio="none" aria-hidden="true"><path d="M2 36 C32 34,42 18,70 24 S110 40,136 21 S176 9,218 14"/><path class="trend-fill" d="M2 36 C32 34,42 18,70 24 S110 40,136 21 S176 9,218 14 L218 44 L2 44Z"/></svg>
+    </button>
+    <button class="metric-card metric-due" data-filter="due"><span class="metric-icon">${iconSvg('calendar')}</span><span class="metric-kicker">Due this week</span><strong class="num">${dueWeek}</strong><small>items require attention</small></button>
+    <button class="metric-card metric-small metric-closed ${af('filterStatus')==='Completed'?'active':''}" data-filter="Completed"><span class="metric-icon">${iconSvg('check-circle')}</span><strong class="num">${done}</strong><span>Closed</span></button>
+    <button class="metric-card metric-small" data-filter="all"><span class="metric-icon">${iconSvg('layers')}</span><strong class="num">${projects}</strong><span>Projects</span></button>
+    <button class="metric-card metric-small metric-inspection ${af('filterStatus')==='Ready for Inspection'?'active':''}" data-filter="Ready for Inspection"><span class="metric-icon">${iconSvg('clipboard')}</span><strong class="num">${ready}</strong><span>Inspections</span></button>
+    <section class="workflow-overview" id="workflowOverview"><div class="workflow-copy"><span class="metric-kicker">Construction progress</span><strong>${pct}% complete</strong><small>${part} in progress · ${ready} ready for inspection</small></div>${workflowRailHTML({status:ready?'Ready for Inspection':part?'Partially Done':done===total&&total?'Completed':'Not Done',contact:part||ready||done},false)}</section>
   `;
-  $('dashboard').querySelectorAll('.stat').forEach(btn=>{
+  $('dashboard').querySelectorAll('[data-filter]').forEach(btn=>{
     btn.onclick=()=>{
       const f=btn.dataset.filter;
       if(f==='all'){ clearFilters(); return; }
+      if(f==='due'){ $('sortBy').value='updated'; render(); return; }
       if(f==='High'){ $('filterPriority').value = $('filterPriority').value==='High'?'':'High'; $('filterStatus').value=''; }
       else{ $('filterStatus').value = $('filterStatus').value===f?'':f; $('filterPriority').value=''; }
       render();
@@ -496,11 +515,12 @@ function coverMedia(item){
 
 function statusSelectHTML(item){
   return `<div class="status-select-wrap sel-${slug(item.status)}" data-id="${item.id}">
-    <span class="status-dot" style="background:currentColor"></span>
+    ${statusIconHTML(item.status)}
     <select class="status-select sel-${slug(item.status)}" aria-label="Status for ${esc(item.room)}" ${CAP('setStatus')?'':'disabled'}>
-      <option ${item.status==='Not Done'?'selected':''}>Not Done</option>
-      <option ${item.status==='Partially Done'?'selected':''}>Partially Done</option>
-      <option ${item.status==='Completed'?'selected':''}>Completed</option>
+      <option value="Not Done" ${item.status==='Not Done'?'selected':''}>Open</option>
+      <option value="Partially Done" ${item.status==='Partially Done'?'selected':''}>In Progress</option>
+      <option value="Ready for Inspection" ${item.status==='Ready for Inspection'?'selected':''}>Ready for Inspection</option>
+      <option value="Completed" ${item.status==='Completed'?'selected':''}>Closed</option>
     </select></div>`;
 }
 function bindStatusSelect(scope, item){
@@ -511,7 +531,7 @@ function bindStatusSelect(scope, item){
     e.stopPropagation();
     item.status=sel.value; item.updatedAt=Date.now();
     await DB.saveItem(item);
-    toast(`${item.room || 'Item'} → ${item.status}`,{type:'success'});
+    toast(`${item.room || 'Item'} → ${statusLabel(item.status)}`,{type:'success'});
     render();
   });
 }
@@ -529,27 +549,28 @@ function renderCard(item){
         ? `<button class="cs-thumb" data-i="${i}" aria-label="View video"><video src="${m.src}" muted></video><span class="cs-vid">${iconSvg('play','width="10" height="10"')}</span></button>`
         : `<button class="cs-thumb" data-i="${i}" aria-label="View photo"><img src="${m.src}" alt="" loading="lazy"></button>`
     ).join('')}</div>` : '';
+  const issueTitle=(item.description||item.room||'Untitled issue').trim();
+  const due=item.expectedDate?new Date(item.expectedDate+'T00:00:00'):null;
+  const overdue=due&&item.status!=='Completed'&&due<new Date(new Date().setHours(0,0,0,0));
   div.innerHTML=`
     <div class="card-thumb" data-gallery>
       ${thumb}
-      <span class="thumb-pri pri-${item.priority}">${iconSvg('flag','width="12" height="12"')}${esc(item.priority)}</span>
+      ${cover?'<span class="annotation-marker"><i></i></span>':''}
       ${media.length?`<span class="thumb-count">${iconSvg('image','width="13" height="13"')}${media.length}</span>`:''}
     </div>
     <div class="card-body">
       ${stripHtml}
-      <div class="card-top">
-        <span class="card-room">${esc(item.room)||'(No room)'}</span>
-        <span class="type-chip ${typeClass(item.type)}">${sIco(typeIcon(item.type))}${esc(item.type)}</span>
-      </div>
-      ${item.description?`<div class="card-desc">${esc(item.description)}</div>`:''}
-      ${statusSelectHTML(item)}
+      <div class="priority-label pri-${item.priority}"><span>${esc(item.priority)}</span><small>priority</small></div>
+      <div class="card-top"><span class="card-room">${esc(issueTitle)}</span></div>
+      <div class="location-breadcrumb">${sIco('layers')}<span>${locationBreadcrumb(item)}</span></div>
+      <div class="card-tag-row"><span class="type-chip ${typeClass(item.type)}">${sIco(typeIcon(item.type))}${esc(item.type)}</span>${statusSelectHTML(item)}</div>
       <div class="card-meta">
-        <span class="meta-line">${sIco('user')}${item.contact?`<strong>${esc(item.contact)}</strong>`:'No contact logged'}</span>
-        ${item.expectedDate && item.status!=='Completed'?`<span class="meta-line eta">${sIco('calendar')}<strong>ETA ${esc(new Date(item.expectedDate+'T00:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}))}</strong></span>`:''}
-        <span class="meta-line">${sIco('clock')}Updated ${fmtDate(item.updatedAt)}${item.history&&item.history.length?` &middot; ${item.history.length} log${item.history.length>1?'s':''}`:''}</span>
+        <span class="meta-line meta-assignee">${sIco('user')}<span>Assigned to</span>${item.contact?`<strong>${esc(item.contact)}</strong>`:'<strong>Unassigned</strong>'}</span>
+        ${item.expectedDate && item.status!=='Completed'?`<span class="meta-line eta ${overdue?'overdue':''}">${sIco('calendar')}<span>Due</span><strong>${esc(due.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}))}</strong></span>`:''}
       </div>
+      ${workflowRailHTML(item,true)}
       <div class="card-actions">
-        <button class="btn btn-outline" data-edit>${sIco('edit')}<span>${CAP('editItem')?'Edit details':'Comment / Update'}</span></button>
+        <button class="btn btn-outline" data-edit><span>View details</span>${sIco('chevron-right')}</button>
       </div>
     </div>`;
   div.querySelector('[data-edit]').addEventListener('click',()=>openModal(item.id));
@@ -580,7 +601,7 @@ function renderTable(list){
       <td class="t-desc">${esc(item.description)}</td>
       <td><span class="type-chip ${typeClass(item.type)}">${sIco(typeIcon(item.type))}${esc(item.type)}</span></td>
       <td class="td-status"></td>
-      <td><span class="badge-pri pri-${item.priority}">${iconSvg('flag','width="12" height="12"')}${esc(item.priority)}</span></td>
+      <td><span class="table-priority pri-${item.priority}">${esc(item.priority)}</span></td>
       <td>${esc(item.contact)||'<span style="color:var(--text-3)">—</span>'}</td>
       <td><button class="icon-btn" data-edit aria-label="Edit">${sIco('edit')}</button></td>`;
     tr.querySelector('.td-status').innerHTML=statusSelectHTML(item);
@@ -630,6 +651,7 @@ function openModal(id){
   else{ $('itemType').value=it?.type||'General Construction'; $('itemTypeOther').value=''; $('itemTypeOther').style.display='none'; }
   editStatus=it?.status||'Not Done'; editPriority=it?.priority||'Medium';
   syncSeg('statusSeg',editStatus); syncSeg('prioritySeg',editPriority);
+  if($('modalWorkflowRail')) $('modalWorkflowRail').innerHTML=workflowRailHTML({status:editStatus,contact:it?.contact||''},false);
   $('itemContact').value=it?.contact||'';
   $('itemExpectedDate').value=it?.expectedDate||'';
   tempBefore=it?[...(it.beforePhotos||[])]:[];
@@ -666,11 +688,35 @@ $('emptyAddBtn').addEventListener('click',()=>openModal(null));
 $('itemModal').addEventListener('click',e=>{ if(e.target===$('itemModal')) closeModal(); });
 $('itemType').addEventListener('change',()=>{ $('itemTypeOther').style.display=$('itemType').value==='Others'?'block':'none'; });
 
+/* premium navigation + mobile punch actions */
+document.querySelectorAll('.nav-item[data-nav-target]').forEach(btn=>btn.addEventListener('click',()=>{
+  const target=$(btn.dataset.navTarget); if(target) target.scrollIntoView({behavior:'smooth',block:'start'});
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n===btn));
+}));
+if($('navReports')) $('navReports').onclick=()=>{$('exportPdfBtn').click();};
+if($('navApprovals')) $('navApprovals').onclick=()=>{$('membersBtn').click();};
+
+const mobileSheet=$('mobileActionSheet');
+function setMobileSheet(open){
+  if(!mobileSheet) return;
+  mobileSheet.toggleAttribute('hidden',!open);
+  document.body.classList.toggle('sheet-open',open);
+}
+if($('mobilePunchBtn')) $('mobilePunchBtn').onclick=()=>setMobileSheet(true);
+if($('closeActionSheet')) $('closeActionSheet').onclick=()=>setMobileSheet(false);
+if(mobileSheet) mobileSheet.addEventListener('click',e=>{ if(e.target===mobileSheet) setMobileSheet(false); });
+document.querySelectorAll('[data-mobile-action]').forEach(btn=>btn.addEventListener('click',()=>{
+  const action=btn.dataset.mobileAction; setMobileSheet(false); openModal(null);
+  if(action==='camera') setTimeout(()=>{ const inp=$('itemPhotosBefore'); inp.setAttribute('capture','environment'); inp.click(); },120);
+  else if(action==='upload') setTimeout(()=>{ const inp=$('itemPhotosBefore'); inp.removeAttribute('capture'); inp.click(); },120);
+  else if(action==='qr') setTimeout(()=>{ $('itemRoom').placeholder='Scan result or enter QR location code'; $('itemRoom').focus(); toast('QR location mode · enter or scan the site location code',{type:'info'}); },120);
+}));
+
 /* segmented controls */
 function syncSeg(groupId,val){
   document.querySelectorAll(`#${groupId} .seg`).forEach(b=>b.classList.toggle('active', b.dataset.val===val));
 }
-document.querySelectorAll('#statusSeg .seg').forEach(b=>b.addEventListener('click',()=>{ editStatus=b.dataset.val; syncSeg('statusSeg',editStatus); }));
+document.querySelectorAll('#statusSeg .seg').forEach(b=>b.addEventListener('click',()=>{ editStatus=b.dataset.val; syncSeg('statusSeg',editStatus); if($('modalWorkflowRail')) $('modalWorkflowRail').innerHTML=workflowRailHTML({status:editStatus,contact:$('itemContact').value},false); }));
 document.querySelectorAll('#prioritySeg .seg').forEach(b=>b.addEventListener('click',()=>{ editPriority=b.dataset.val; syncSeg('prioritySeg',editPriority); }));
 
 /* uploads + drag/drop */
@@ -982,14 +1028,16 @@ function renderPermissions(){
     catch(err){ _permWorking[role][cap]=prev; t.classList.toggle('on',!!prev); toast(err.message||'Could not save',{type:'info'}); }
   });
 }
-$('permsBtn').addEventListener('click',openPermissions);
-$('permsResetBtn').addEventListener('click',async()=>{
-  _permWorking=Permissions.defaults();
-  try{ await Permissions.save(_permWorking); renderPermissions(); applyCaps(); render(); toast('Reset to defaults',{type:'success'}); }
-  catch(err){ toast(err.message||'Could not reset',{type:'info'}); }
-});
-$('closePermsBtn').addEventListener('click',()=>$('permsModal').style.display='none');
-$('permsModal').addEventListener('click',e=>{ if(e.target===$('permsModal')) $('permsModal').style.display='none'; });
+if($('permsBtn')&&$('permsModal')){
+  $('permsBtn').addEventListener('click',openPermissions);
+  $('permsResetBtn')?.addEventListener('click',async()=>{
+    _permWorking=Permissions.defaults();
+    try{ await Permissions.save(_permWorking); renderPermissions(); applyCaps(); render(); toast('Reset to defaults',{type:'success'}); }
+    catch(err){ toast(err.message||'Could not reset',{type:'info'}); }
+  });
+  $('closePermsBtn')?.addEventListener('click',()=>$('permsModal').style.display='none');
+  $('permsModal').addEventListener('click',e=>{ if(e.target===$('permsModal')) $('permsModal').style.display='none'; });
+}
 $('pendingSignOut').addEventListener('click',async()=>{ await Auth.signOut(); CURRENT_ROLE=null; IS_SUPER=false; currentProjectId=null; items=[]; project=null; myProjectList=[]; showAuth(); });
 
 /* ---------- backup: export / import (.json with photos) ---------- */
@@ -1002,7 +1050,7 @@ moreBtn.addEventListener('click',e=>{ e.stopPropagation(); setMenu(moreMenu.hasA
 document.addEventListener('click',e=>{ if(!moreMenu.hasAttribute('hidden') && !e.target.closest('.menu-wrap')) setMenu(false); });
 
 function normalizeItem(raw){
-  const st=['Not Done','Partially Done','Completed'], pr=['High','Medium','Low'];
+  const st=['Not Done','Partially Done','Ready for Inspection','Completed'], pr=['High','Medium','Low'];
   return {
     id: raw.id || uid(),
     room: (raw.room||'').toString(),
@@ -1076,7 +1124,7 @@ $('exportPdfBtn').addEventListener('click',()=>{
   const total=items.length, done=items.filter(i=>i.status==='Completed').length;
   const not=items.filter(i=>i.status==='Not Done').length, part=items.filter(i=>i.status==='Partially Done').length;
   const pct=total?Math.round(done/total*100):0;
-  const sc={'Not Done':'background:#fdeaec;color:#b91c2c','Partially Done':'background:#fdf0db;color:#a55a08','Completed':'background:#e4f6ea;color:#15803d'};
+  const sc={'Not Done':'background:#fdeaec;color:#b91c2c','Partially Done':'background:#fdf0db;color:#a55a08','Ready for Inspection':'background:#f7f8f1;color:#687148;border:1px solid #9ba47a','Completed':'background:#e4f6ea;color:#15803d'};
   const pc={High:'background:#fdeaec;color:#b91c2c',Medium:'background:#fdf0db;color:#a55a08',Low:'background:#dcf3f0;color:#0f766e'};
   const p=project;
   const coverP=(p&&p.photos&&p.photos.length)?p.photos.find(m=>!m.isVideo):null;
@@ -1107,7 +1155,7 @@ $('exportPdfBtn').addEventListener('click',()=>{
       <div class="pr-info">
         <div class="pr-room">${esc(it.room)}</div>
         <div style="margin:4px 0">
-          <span class="pr-badge" style="${sc[it.status]}">${esc(it.status)}</span>
+          <span class="pr-badge" style="${sc[it.status]||''}">${esc(statusLabel(it.status))}</span>
           <span class="pr-badge" style="${pc[it.priority]}">${esc(it.priority)} priority</span>
           <span class="pr-badge" style="background:#eef2f7;color:#475569">${esc(it.type)}</span>
         </div>

@@ -91,6 +91,47 @@ function fileToMedia(file){
 function fmtDate(ts){ return ts ? new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : ''; }
 function fmtDateTime(){ return new Date().toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
 function statusLabel(status){ return ({'Not Done':'Open','Partially Done':'In Progress','Ready for Inspection':'Ready for Inspection','Completed':'Closed'})[status]||status||'Open'; }
+function auditDate(ts){ return ts ? new Date(ts).toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'}) : ''; }
+function actorSnapshot(){
+  const user=Auth.user()||{};
+  return { by:user.email||'Unknown user', role:IS_SUPER?'super admin':(CURRENT_ROLE||'team member') };
+}
+function actorName(email){
+  const base=(email||'SitePunch user').split('@')[0].replace(/[._-]+/g,' ').trim();
+  return base.replace(/\b\w/g,c=>c.toUpperCase())||'SitePunch User';
+}
+function actorInitials(email){
+  const parts=actorName(email).split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0]||'?')+(parts.length>1?(parts.at(-1)[0]||''):'')).toUpperCase();
+}
+function auditEntry(text,{kind='update',title='',date=Date.now(),by,role,draft=false}={}){
+  const actor=actorSnapshot();
+  return { id:uid(), date, text, kind, title, by:by||actor.by, role:role||actor.role, draft };
+}
+function ensureIssueHistory(item){
+  item.history=Array.isArray(item.history)?item.history:[];
+  if(!item.history.some(h=>h.kind==='created')){
+    item.history.push(auditEntry('Issue record created',{kind:'created',title:'Issue created',date:item.createdAt||item.updatedAt||Date.now(),by:item.createdBy||'SitePunch system',role:item.createdByRole||'system'}));
+  }
+  return item;
+}
+function auditChanges(before,after){
+  if(!before) return [];
+  const entries=[];
+  const add=(text,kind='update',title='Issue updated')=>entries.push(auditEntry(text,{kind,title}));
+  if(before.status!==after.status) add(`Status changed from ${statusLabel(before.status)} to ${statusLabel(after.status)}`,'status','Status updated');
+  if(before.priority!==after.priority) add(`Priority changed from ${before.priority||'Unspecified'} to ${after.priority||'Unspecified'}`,'priority','Priority updated');
+  if((before.contact||'')!==(after.contact||'')) add(`Responsible contractor changed from ${before.contact||'Unassigned'} to ${after.contact||'Unassigned'}`,'assignment','Assignment updated');
+  if((before.expectedDate||'')!==(after.expectedDate||'')) add(`Due date changed from ${before.expectedDate||'Not set'} to ${after.expectedDate||'Not set'}`,'calendar','Due date updated');
+  if((before.room||'')!==(after.room||'')) add(`Location changed from ${before.room||'Not set'} to ${after.room||'Not set'}`,'location','Location updated');
+  if((before.type||'')!==(after.type||'')) add(`Trade changed from ${before.type||'Not set'} to ${after.type||'Not set'}`,'trade','Trade updated');
+  if((before.description||'')!==(after.description||'')) add('Issue description was updated','description','Description updated');
+  const beforeOriginal=(before.beforePhotos||[]).length, afterOriginal=(after.beforePhotos||[]).length;
+  const beforeProgress=(before.afterPhotos||[]).length, afterProgress=(after.afterPhotos||[]).length;
+  if(beforeOriginal!==afterOriginal) add(`Original evidence changed from ${beforeOriginal} to ${afterOriginal} file${afterOriginal===1?'':'s'}`,'photo','Evidence updated');
+  if(beforeProgress!==afterProgress) add(`Progress evidence changed from ${beforeProgress} to ${afterProgress} file${afterProgress===1?'':'s'}`,'photo','Progress photos updated');
+  return entries;
+}
 function statusIconHTML(status){
   if(status==='Partially Done') return '<span class="status-symbol rotating">↻</span>';
   if(status==='Ready for Inspection') return '<span class="status-symbol inspection">◇</span>';
@@ -213,7 +254,7 @@ async function openProject(pid){
   localStorage.setItem('punchlist_project', pid);
   CURRENT_ROLE = await Projects.roleIn(pid);
   project = await Projects.get(pid);
-  items = await DB.listItems(pid);
+  items = (await DB.listItems(pid)).map(ensureIssueHistory);
   document.body.classList.remove('pending-screen','locked');
   applyCaps();
   renderProjectBanner(); renderRoomFilter(); render();
@@ -529,7 +570,9 @@ function bindStatusSelect(scope, item){
   if(!CAP('setStatus')) return;                // contractors can't change status
   sel.addEventListener('change',async e=>{
     e.stopPropagation();
+    const previous=item.status;
     item.status=sel.value; item.updatedAt=Date.now();
+    ensureIssueHistory(item).history.unshift(auditEntry(`Status changed from ${statusLabel(previous)} to ${statusLabel(item.status)}`,{kind:'status',title:'Status updated'}));
     await DB.saveItem(item);
     toast(`${item.room || 'Item'} → ${statusLabel(item.status)}`,{type:'success'});
     render();
@@ -570,7 +613,7 @@ function renderCard(item){
       </div>
       ${workflowRailHTML(item,true)}
       <div class="card-actions">
-        <button class="btn btn-outline" data-edit><span>View details</span>${sIco('chevron-right')}</button>
+        <button class="btn btn-outline" data-edit><span>View details <small class="card-update-count">${(item.history||[]).length} update${(item.history||[]).length===1?'':'s'}</small></span>${sIco('chevron-right')}</button>
       </div>
     </div>`;
   div.querySelector('[data-edit]').addEventListener('click',()=>openModal(item.id));
@@ -646,7 +689,7 @@ function openModal(id){
   $('itemId').value=id||'';
   $('itemRoom').value=it?.room||'';
   $('itemDescription').value=it?.description||'';
-  const known=['General Construction','Painting','Electrical','Camera','Plumbing'];
+  const known=['General Construction','Painting','Electrical','Camera','Plumbing','HVAC','Joinery','Civil Works'];
   if(it && !known.includes(it.type)){ $('itemType').value='Others'; $('itemTypeOther').value=it.type; $('itemTypeOther').style.display='block'; }
   else{ $('itemType').value=it?.type||'General Construction'; $('itemTypeOther').value=''; $('itemTypeOther').style.display='none'; }
   editStatus=it?.status||'Not Done'; editPriority=it?.priority||'Medium';
@@ -656,7 +699,7 @@ function openModal(id){
   $('itemExpectedDate').value=it?.expectedDate||'';
   tempBefore=it?[...(it.beforePhotos||[])]:[];
   tempAfter=it?[...(it.afterPhotos||[])]:[];
-  tempHistory=it?[...(it.history||[])]:[];
+  tempHistory=it?[...ensureIssueHistory(it).history]:[];
   historyBaseline=tempHistory.length;
   renderThumbs('beforeThumbs',tempBefore); renderThumbs('afterThumbs',tempAfter);
   renderHistory();
@@ -751,18 +794,18 @@ wireDrop('afterDrop',()=>tempAfter,'afterThumbs');
 /* history */
 $('addHistoryBtn').addEventListener('click',()=>{
   const t=$('historyNoteInput').value.trim(); if(!t) return;
-  tempHistory.unshift({date:Date.now(),text:t}); $('historyNoteInput').value=''; renderHistory(); $('historyNoteInput').focus();
+  tempHistory.unshift(auditEntry(t,{kind:'comment',title:'Work update',draft:true})); $('historyNoteInput').value=''; renderHistory(); $('historyNoteInput').focus();
 });
 $('historyNoteInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); $('addHistoryBtn').click(); } });
 function renderHistory(){
   const l=$('historyList'); l.innerHTML='';
-  if(!tempHistory.length){ l.innerHTML='<li class="history-empty">No log entries yet. Track each contact &amp; follow-up here.</li>'; return; }
-  const newCount = tempHistory.length - historyBaseline;
+  if(!tempHistory.length){ l.innerHTML='<li class="history-empty">No signed updates yet.</li>'; return; }
   tempHistory.forEach((h,idx)=>{
-    const canRemove = CAP('editItem') || idx < newCount;   // contractors can only remove their just-added notes
-    const who = h.by ? `<span class="h-by">${esc((h.by||'').split('@')[0])}${h.role==='contractor'?' · contractor':''}</span>` : '';
+    const canRemove = !!h.draft;
+    const who=h.by||'SitePunch system';
     const li=document.createElement('li');
-    li.innerHTML=`<span class="h-text">${esc(h.text)}${who}</span><span class="h-date">${fmtDate(h.date)}</span>${canRemove?`<button class="remove-hist" aria-label="Remove note">${iconSvg('trash','width="14" height="14"')}</button>`:''}`;
+    li.className=`history-entry history-${slug(h.kind||'update')}`;
+    li.innerHTML=`<span class="history-avatar" aria-hidden="true">${esc(actorInitials(who))}</span><span class="history-content"><span class="history-topline"><strong>${esc(h.title||'Work update')}</strong><span class="h-date">${esc(auditDate(h.date))}</span></span><span class="h-text">${esc(h.text)}</span><span class="h-signature">${iconSvg('check-circle','width="12" height="12"')} Signed by <b>${esc(actorName(who))}</b> · ${esc(who)} · ${esc(h.role||'team member')}</span></span>${canRemove?`<button class="remove-hist" aria-label="Remove draft update">${iconSvg('trash','width="14" height="14"')}</button>`:''}`;
     const rm=li.querySelector('.remove-hist');
     if(rm) rm.addEventListener('click',()=>{ tempHistory.splice(idx,1); renderHistory(); });
     l.appendChild(li);
@@ -781,9 +824,11 @@ $('saveItemBtn').addEventListener('click',async()=>{
       id:currentEditId||uid(), projectId:currentProjectId, room, description:$('itemDescription').value.trim(), type,
       status:editStatus, priority:editPriority, contact:$('itemContact').value.trim(),
       expectedDate:$('itemExpectedDate').value||'',
-      beforePhotos:tempBefore, afterPhotos:tempAfter, history:tempHistory,
+      beforePhotos:tempBefore, afterPhotos:tempAfter, history:tempHistory.map(h=>({...h,draft:false})),
       createdAt:existing?.createdAt||Date.now(), updatedAt:Date.now()
     };
+    if(existing) item.history.unshift(...auditChanges(existing,item));
+    else item.history.push(auditEntry('Issue record created and assigned to the project workflow',{kind:'created',title:'Issue created',date:item.createdAt}));
     const saved=await DB.saveItem(item);
     const i=items.findIndex(x=>x.id===item.id); if(i>=0) items[i]=saved||item; else items.push(saved||item);
     renderRoomFilter(); render(); closeModal();
@@ -792,12 +837,13 @@ $('saveItemBtn').addEventListener('click',async()=>{
     /* contractor: only expected date, after photos, new comments */
     if(!currentEditId){ closeModal(); return; }
     const orig=items.find(i=>i.id===currentEditId);
-    const origLen=(orig?.history||[]).length;
-    const newNotes=tempHistory.slice(0, Math.max(0,tempHistory.length-origLen)).map(h=>h.text).reverse();
+    const newNotes=tempHistory.filter(h=>h.draft).map(h=>h.text).reverse();
+    if((orig?.expectedDate||'')!==($('itemExpectedDate').value||'')) newNotes.push(`Due date updated from ${orig?.expectedDate||'Not set'} to ${$('itemExpectedDate').value||'Not set'}`);
+    if((orig?.afterPhotos||[]).length!==tempAfter.length) newNotes.push(`Progress evidence updated from ${(orig?.afterPhotos||[]).length} to ${tempAfter.length} file${tempAfter.length===1?'':'s'}`);
     try{
       let updated=await DB.contractorUpdate(currentEditId,{ expectedDate:$('itemExpectedDate').value||'', afterPhotos:tempAfter, comment:newNotes[0] });
       for(let k=1;k<newNotes.length;k++){ updated=await DB.contractorUpdate(currentEditId,{ comment:newNotes[k] }); }
-      const i=items.findIndex(x=>x.id===currentEditId); if(i>=0 && updated) items[i]=updated;
+      const i=items.findIndex(x=>x.id===currentEditId); if(i>=0 && updated) items[i]=ensureIssueHistory(updated);
       render(); closeModal();
       toast('Update saved',{type:'success'});
     }catch(err){ toast(err.message||'Could not save update',{type:'info'}); }

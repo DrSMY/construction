@@ -533,17 +533,29 @@ main{ padding:14px 24px 80px; }
 .history-add-row{ display:flex; gap:8px; }
 .history-add-row input{ flex:1; }
 .history-add-row .btn{ width:42px; padding:0; flex:0 0 auto; }
-.history-list{ list-style:none; padding:0; margin:6px 0 0; display:flex; flex-direction:column; gap:7px; max-height:180px; overflow-y:auto; }
+.history-list{ list-style:none; padding:0; margin:8px 0 0; display:flex; flex-direction:column; gap:0; max-height:340px; overflow-y:auto; }
 .history-list li{
-  background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:9px 11px;
-  display:flex; gap:10px; align-items:flex-start; font-size:.84rem;
+  position:relative; background:transparent; border:0; border-radius:0; padding:10px 8px 14px 0;
+  display:grid; grid-template-columns:38px minmax(0,1fr) auto; gap:10px; align-items:flex-start; font-size:.84rem;
 }
-.history-list li .h-text{ flex:1; }
+.history-list li:not(:last-child)::after{ content:""; position:absolute; left:18px; top:46px; bottom:-2px; width:1px; background:linear-gradient(var(--primary-200),var(--border)); }
+.history-avatar{ width:38px; height:38px; border-radius:11px; display:grid; place-items:center; background:#eef0e6; border:1px solid #d9ddca; color:#59613f; font-size:.7rem; font-weight:900; letter-spacing:.03em; box-shadow:0 2px 8px rgba(39,47,31,.08); z-index:1; }
+.history-status .history-avatar{ background:var(--partial-bg); border-color:#eed29b; color:var(--partial); }
+.history-created .history-avatar{ background:#edf7ec; border-color:#c7dfc9; color:var(--done); }
+.history-comment .history-avatar{ background:#f5f1e4; border-color:#e5d7ae; color:#8e651b; }
+.history-content{ min-width:0; display:flex; flex-direction:column; gap:4px; padding-top:1px; }
+.history-topline{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.history-topline strong{ font-size:.79rem; color:var(--text); }
+.history-list li .h-text{ color:var(--text-2); line-height:1.45; }
 .history-list li .h-date{ color:var(--text-3); font-size:.72rem; font-weight:600; white-space:nowrap; }
+.h-signature{ display:flex; align-items:center; gap:4px; flex-wrap:wrap; color:var(--text-3); font-size:.66rem; line-height:1.35; }
+.h-signature svg{ color:var(--done); flex:0 0 auto; }
+.h-signature b{ color:var(--text-2); }
 .history-list li .remove-hist{ border:none; background:transparent; color:var(--text-3); cursor:pointer; padding:2px; display:inline-flex; }
 .history-list li .remove-hist:hover{ color:var(--not); }
 .history-list li .remove-hist .ico{ width:14px; height:14px; }
 .history-empty{ color:var(--text-3); font-size:.8rem; font-style:italic; }
+.card-update-count{ display:block; margin-top:2px; color:var(--text-3); font-size:.62rem; font-weight:700; }
 
 .modal-footer{
   display:flex; align-items:center; justify-content:space-between; gap:10px;
@@ -953,7 +965,7 @@ body.locked .app-sidebar,body.pending-screen .app-sidebar{ display:none; }
   .pb-card{display:grid;grid-template-columns:48px minmax(0,1fr) auto;align-items:start;gap:11px;padding:13px}.pb-cover,.pb-cover-ph{width:48px;height:48px;border-radius:10px}.pb-cover-ph svg{width:24px!important;height:24px!important}.pb-title{font-size:.98rem}.pb-desc{display:none}.pb-main{min-width:0}.pb-top{gap:6px}.pb-edit{width:38px;padding:0}.pb-edit .btn-label{display:none}.pb-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin-top:9px;padding-top:9px}.pb-meta .pb-field:nth-child(n+4){display:none}.pb-field .v{font-size:.75rem}.pb-card::after{grid-column:3;grid-row:1;order:initial;margin:0;padding:4px 7px;font-size:.58rem}
 }
 @media(max-width:480px){
-  .metric-main strong{font-size:2.3rem}.workflow-label{font-size:.56rem}.action-grid{grid-template-columns:1fr}.card-thumb{height:205px}.auth-card{margin:12px}
+  .metric-main strong{font-size:2.3rem}.workflow-label{font-size:.56rem}.action-grid{grid-template-columns:1fr}.card-thumb{height:205px}.auth-card{margin:12px}.history-topline{display:block}.history-topline .h-date{display:block;margin-top:2px}.history-list li{grid-template-columns:34px minmax(0,1fr) auto}.history-avatar{width:34px;height:34px}.history-list li:not(:last-child)::after{left:16px;top:42px}
 }
 @media(prefers-reduced-motion:reduce){
   .card,.workflow-step.active .workflow-node,.status-symbol.rotating,.action-sheet{animation:none!important}

@@ -121,20 +121,20 @@
   <nav class="sidebar-nav">
     <div class="nav-group">
       <span class="nav-group-label">Workspace</span>
-      <button class="nav-item active" type="button" data-nav-target="dashboard"><span class="nav-indicator"></span><span class="ico" data-ico="grid"></span><span>Dashboard</span></button>
-      <button class="nav-item" type="button" data-nav-target="projectBanner"><span class="nav-indicator"></span><span class="ico" data-ico="layers"></span><span>Projects</span></button>
-      <button class="nav-item" type="button" data-nav-target="itemsContainer"><span class="nav-indicator"></span><span class="ico" data-ico="alert"></span><span>Issues</span></button>
+      <button class="nav-item active" type="button" data-nav-view="dashboard"><span class="nav-indicator"></span><span class="ico" data-ico="grid"></span><span>Dashboard</span></button>
+      <button class="nav-item" type="button" data-nav-view="projects"><span class="nav-indicator"></span><span class="ico" data-ico="layers"></span><span>Projects</span></button>
+      <button class="nav-item" type="button" data-nav-view="issues"><span class="nav-indicator"></span><span class="ico" data-ico="alert"></span><span>Issues</span></button>
     </div>
     <div class="nav-group nav-management">
       <span class="nav-group-label">Management</span>
-      <button class="nav-item" type="button" data-nav-target="workflowOverview"><span class="nav-indicator"></span><span class="ico" data-ico="check-circle"></span><span>Inspections</span></button>
-      <button class="nav-item" type="button" id="navReports"><span class="nav-indicator"></span><span class="ico" data-ico="clipboard"></span><span>Reports</span></button>
-      <button class="nav-item need-manage" type="button" id="navApprovals"><span class="nav-indicator"></span><span class="ico" data-ico="shield"></span><span>Approvals</span></button>
+      <button class="nav-item" type="button" data-nav-view="inspections"><span class="nav-indicator"></span><span class="ico" data-ico="check-circle"></span><span>Inspections</span></button>
+      <button class="nav-item" type="button" data-nav-view="reports"><span class="nav-indicator"></span><span class="ico" data-ico="clipboard"></span><span>Reports</span></button>
+      <button class="nav-item need-manage" type="button" data-nav-view="approvals"><span class="nav-indicator"></span><span class="ico" data-ico="shield"></span><span>Approvals</span></button>
     </div>
     <div class="nav-group nav-communication">
       <span class="nav-group-label">Communication</span>
-      <button class="nav-item" type="button" data-nav-target="itemsContainer"><span class="nav-indicator"></span><span class="ico" data-ico="message"></span><span>Messages</span><small class="nav-count">3</small></button>
-      <button class="nav-item" type="button" data-nav-target="itemsContainer"><span class="nav-indicator"></span><span class="ico" data-ico="users"></span><span>Team</span></button>
+      <button class="nav-item" type="button" data-nav-view="messages"><span class="nav-indicator"></span><span class="ico" data-ico="message"></span><span>Messages</span><small class="nav-count">3</small></button>
+      <button class="nav-item" type="button" data-nav-view="team"><span class="nav-indicator"></span><span class="ico" data-ico="users"></span><span>Team</span></button>
     </div>
   </nav>
   <div class="sidebar-foot"><span class="sidebar-avatar">SP</span><span><strong>SitePunch</strong><small>Construction OS</small></span></div>
@@ -184,6 +184,8 @@
 </header>
 
 <section class="project-banner" id="projectBanner"></section>
+
+<section class="nav-page" id="navPage" hidden aria-live="polite"></section>
 
 <section class="dashboard" id="dashboard"></section>
 

@@ -731,13 +731,53 @@ $('emptyAddBtn').addEventListener('click',()=>openModal(null));
 $('itemModal').addEventListener('click',e=>{ if(e.target===$('itemModal')) closeModal(); });
 $('itemType').addEventListener('change',()=>{ $('itemTypeOther').style.display=$('itemType').value==='Others'?'block':'none'; });
 
-/* premium navigation + mobile punch actions */
-document.querySelectorAll('.nav-item[data-nav-target]').forEach(btn=>btn.addEventListener('click',()=>{
-  const target=$(btn.dataset.navTarget); if(target) target.scrollIntoView({behavior:'smooth',block:'start'});
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n===btn));
-}));
-if($('navReports')) $('navReports').onclick=()=>{$('exportPdfBtn').click();};
-if($('navApprovals')) $('navApprovals').onclick=()=>{$('membersBtn').click();};
+/* workspace navigation: every sidebar item opens a real in-app destination */
+let activeNavView='dashboard';
+function navShell(title, eyebrow, body, actions=''){
+  return `<div class="nav-page-head"><div><span class="nav-page-eyebrow">${esc(eyebrow)}</span><h1>${esc(title)}</h1></div><div class="nav-page-actions">${actions}</div></div><div class="nav-page-body">${body}</div>`;
+}
+function showNavPage(view){
+  activeNavView=view||'dashboard';
+  document.querySelectorAll('.nav-item[data-nav-view]').forEach(n=>n.classList.toggle('active',n.dataset.navView===activeNavView));
+  const page=$('navPage');
+  const isDashboard=activeNavView==='dashboard', isIssues=activeNavView==='issues';
+  page.hidden=isDashboard;
+  ['projectBanner','dashboard','toolbar','activeFilters','itemsContainer','emptyState','noMatchState','mobilePunchBtn'].forEach(id=>{ const el=$(id); if(el) el.hidden=!(isDashboard||isIssues); });
+  if(isDashboard){ window.scrollTo({top:0,behavior:'smooth'}); return; }
+  if(isIssues){ page.hidden=true; window.scrollTo({top:0,behavior:'smooth'}); return; }
+  renderNavPage(); window.scrollTo({top:0,behavior:'smooth'});
+}
+function renderNavPage(){
+  const page=$('navPage'); if(!page||activeNavView==='dashboard'||activeNavView==='issues') return;
+  const open=items.filter(i=>i.status!=='Completed'), ready=items.filter(i=>i.status==='Ready for Inspection');
+  if(activeNavView==='projects'){
+    const cards=myProjectList.length?myProjectList.map(p=>`<article class="nav-project-card"><span class="nav-project-icon">${iconSvg('layers')}</span><div><h3>${esc(p.name||'Untitled project')}</h3><p>${esc(p.location||p.villa||'Project workspace')}</p><small>${p.id===currentProjectId?'Current project':'Project'} · ${p.code?esc(p.code):'No join code'}</small></div><button class="btn btn-outline sm" data-switch-project="${esc(p.id)}">${p.id===currentProjectId?'Open':'Switch'}</button></article>`).join(''):'<div class="nav-empty">No projects are assigned to your account yet.</div>';
+    page.innerHTML=navShell('Projects','Workspace',`<div class="nav-project-grid">${cards}</div>`,CAP('editProject')?`<button class="btn btn-primary" id="navCreateProject">${sIco('plus')}New project</button>`:'');
+    page.querySelector('#navCreateProject')?.addEventListener('click',openProjectModal);
+    page.querySelectorAll('[data-switch-project]').forEach(b=>b.addEventListener('click',async()=>{ const p=myProjectList.find(x=>x.id===b.dataset.switchProject); if(p){ await openProject(p.id); showNavPage('projects'); } }));
+  } else if(activeNavView==='inspections'){
+    const list=ready.length?ready.map(i=>`<article class="nav-list-row"><span class="nav-list-icon">${iconSvg('check-circle')}</span><div><strong>${esc(i.description||i.room||'Inspection item')}</strong><p>${locationBreadcrumb(i)}</p></div><span class="nav-row-meta">${i.expectedDate?esc(fmtDate(new Date(i.expectedDate+'T00:00:00').getTime())):'Schedule needed'}</span><button class="btn btn-outline sm" data-open-issue="${esc(i.id)}">Review</button></article>`).join(''):'<div class="nav-empty">No items are ready for inspection. Move an open issue through the progress rail to see it here.</div>';
+    page.innerHTML=navShell('Inspections','Management',`<div class="nav-summary"><strong>${ready.length}</strong><span>ready for inspection</span><strong>${open.length}</strong><span>open items in workflow</span></div><div class="nav-list">${list}</div>`);
+    page.querySelectorAll('[data-open-issue]').forEach(b=>b.onclick=()=>openModal(b.dataset.openIssue));
+  } else if(activeNavView==='reports'){
+    const closed=items.filter(i=>i.status==='Completed').length, overdue=open.filter(i=>i.expectedDate&&new Date(i.expectedDate+'T00:00:00')<new Date(new Date().setHours(0,0,0,0))).length;
+    page.innerHTML=navShell('Reports','Management',`<div class="report-hero"><span class="report-icon">${iconSvg('clipboard')}</span><div><h2>${esc(project?.docTitle||'Owner’s Punch List')}</h2><p>Generate a signed snapshot of project health, open work, evidence, and issue activity.</p></div></div><div class="report-stats"><div><strong>${items.length}</strong><span>Total issues</span></div><div><strong>${open.length}</strong><span>Open work</span></div><div><strong>${closed}</strong><span>Closed</span></div><div><strong>${overdue}</strong><span>Overdue</span></div></div>`, `<button class="btn btn-primary" id="navExportReport">${sIco('download')}Export PDF</button>`);
+    page.querySelector('#navExportReport').onclick=()=>$('exportPdfBtn').click();
+  } else if(activeNavView==='approvals'){
+    page.innerHTML=navShell('Approvals','Management',`<div class="approval-hero"><span class="report-icon">${iconSvg('shield')}</span><div><h2>Access and project approvals</h2><p>Review pending join requests and manage who can update this project.</p></div></div><div class="nav-callout">${sIco('users')}<span>Approval decisions are recorded against the project membership and reflected immediately in team access.</span></div>`,`<button class="btn btn-primary" id="navManageApprovals">${sIco('users')}Manage approvals</button>`);
+    page.querySelector('#navManageApprovals').onclick=openMembers;
+  } else if(activeNavView==='messages'){
+    const feed=items.flatMap(i=>(i.history||[]).map(h=>({...h,issue:i}))).sort((a,b)=>(b.date||0)-(a.date||0)).slice(0,12);
+    const rows=feed.length?feed.map(h=>`<article class="message-row"><span class="message-avatar">${esc(actorInitials(h.by))}</span><div><strong>${esc(h.title||'Issue update')}</strong><p>${esc(h.issue.description||h.issue.room||'Issue')} · ${esc(h.text||'')}</p><small>Signed by ${esc(actorName(h.by))} · ${esc(h.role||'team member')} · ${esc(auditDate(h.date))}</small></div><button class="icon-btn" data-open-issue="${esc(h.issue.id)}" aria-label="Open issue">${sIco('chevron-right')}</button></article>`).join(''):'<div class="nav-empty">Issue updates will appear here as your team records work.</div>';
+    page.innerHTML=navShell('Messages','Communication',`<p class="nav-intro">Recent signed updates from across the project.</p><div class="message-list">${rows}</div>`);
+    page.querySelectorAll('[data-open-issue]').forEach(b=>b.onclick=()=>openModal(b.dataset.openIssue));
+  } else if(activeNavView==='team'){
+    page.innerHTML=navShell('Team','Communication',`<p class="nav-intro">Project members, roles, and access status.</p><div class="nav-team-list"><div class="nav-loading">Loading team…</div></div>`,`<button class="btn btn-primary" id="navManageTeam">${sIco('users')}Manage team</button>`);
+    page.querySelector('#navManageTeam').onclick=openMembers;
+    (async()=>{ try{ const mems=currentProjectId?await Projects.membersOf(currentProjectId):[]; const list=page.querySelector('.nav-team-list'); list.innerHTML=mems.length?mems.map(m=>`<div class="team-row"><span class="message-avatar">${esc((m.email?.[0]||'?').toUpperCase())}</span><div><strong>${esc(m.email)}</strong><small>${esc(m.role||'member')} · ${esc(m.status||'')}</small></div>${roleBadge(m.role||'member')}</div>`).join(''):'<div class="nav-empty">No team members yet.</div>'; }catch(e){ page.querySelector('.nav-team-list').innerHTML='<div class="nav-empty">Team data is unavailable right now.</div>'; } })();
+  }
+}
+document.querySelectorAll('.nav-item[data-nav-view]').forEach(btn=>btn.addEventListener('click',()=>showNavPage(btn.dataset.navView)));
 
 const mobileSheet=$('mobileActionSheet');
 function setMobileSheet(open){

@@ -3,21 +3,56 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Site Punch List · Contractor Tracker</title>
+<title>SitePunch · From defect to done</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=6">
 </head>
 <body class="locked">
 
+<!-- Branded intro / logo replay -->
+<div id="introOverlay" class="intro-overlay" aria-label="SitePunch introduction">
+  <video id="introVideo" class="intro-video" src="assets/sitepunch-intro.mp4" preload="auto" playsinline></video>
+  <div class="intro-controls">
+    <button id="introSoundBtn" class="intro-control" type="button"><span class="intro-sound-icon">♪</span><span>Play with sound</span></button>
+    <button id="introSkipBtn" class="intro-control intro-skip" type="button">Skip intro</button>
+  </div>
+</div>
+
 <!-- Auth / login screen -->
 <div id="authOverlay" class="auth-overlay">
+  <video id="loginBgVideo" class="auth-bg-video" src="assets/sitepunch-intro.mp4" autoplay muted loop playsinline preload="auto" aria-hidden="true"></video>
+  <div class="auth-video-veil" aria-hidden="true"></div>
+  <aside class="auth-showcase" aria-label="Product overview">
+    <div class="auth-showcase-inner">
+      <div class="showcase-brand"><button class="logo-replay" type="button" data-replay-intro aria-label="Replay SitePunch introduction"><img src="assets/sitepunch-logo.png" alt="SitePunch"></button><span>From defect to done.</span></div>
+      <div class="showcase-copy">
+        <span class="showcase-kicker">Built for the jobsite</span>
+        <h2>Close every detail.<br><span>Hand over with confidence.</span></h2>
+        <p>Capture defects, assign ownership, and keep a visual record from first inspection to final sign-off.</p>
+      </div>
+      <div class="showcase-preview" aria-hidden="true">
+        <div class="preview-top"><span>Project health</span><strong>72%</strong></div>
+        <div class="preview-progress"><span></span></div>
+        <div class="preview-stats">
+          <div><strong>24</strong><span>Open items</span></div>
+          <div><strong>11</strong><span>In progress</span></div>
+          <div><strong>87</strong><span>Completed</span></div>
+        </div>
+      </div>
+      <div class="showcase-points">
+        <span><i class="ico" data-ico="camera"></i>Photo evidence</span>
+        <span><i class="ico" data-ico="users"></i>Clear ownership</span>
+        <span><i class="ico" data-ico="download"></i>Ready-to-send reports</span>
+      </div>
+    </div>
+  </aside>
   <div class="auth-card">
     <div class="auth-brand">
-      <span class="auth-mark" id="authMark"></span>
+      <button class="auth-mark logo-replay" type="button" data-replay-intro aria-label="Replay SitePunch introduction"><img src="assets/sitepunch-logo.png" alt="SitePunch"></button>
       <div>
-        <h1>Site Punch List</h1>
+        <h1>Welcome back</h1>
         <span class="auth-sub" id="authModeLabel">Sign in to continue</span>
       </div>
       <span class="auth-badge" id="authBadge"></span>
@@ -29,11 +64,11 @@
     <form id="authForm" class="auth-form" autocomplete="on">
       <div class="field">
         <label for="authEmail">Email</label>
-        <input type="email" id="authEmail" autocomplete="username" placeholder="you@email.com" required>
+        <input type="email" id="authEmail" autocomplete="username" placeholder="name@company.com" required>
       </div>
       <div class="field">
         <label for="authPassword">Password</label>
-        <input type="password" id="authPassword" autocomplete="current-password" placeholder="Your password" required>
+        <input type="password" id="authPassword" autocomplete="current-password" placeholder="Enter your password" required>
       </div>
       <div class="field" id="authRoleField" style="display:none;">
         <label>I am the…</label>
@@ -80,18 +115,42 @@
   </div>
 </div>
 
+<!-- Product navigation -->
+<aside class="app-sidebar" aria-label="Primary navigation">
+  <button class="sidebar-logo logo-replay" type="button" data-replay-intro aria-label="Replay SitePunch introduction"><img src="assets/sitepunch-logo.png" alt="SitePunch"></button>
+  <nav class="sidebar-nav">
+    <div class="nav-group">
+      <span class="nav-group-label">Workspace</span>
+      <button class="nav-item active" type="button" data-nav-view="dashboard"><span class="nav-indicator"></span><span class="ico" data-ico="grid"></span><span>Dashboard</span></button>
+      <button class="nav-item" type="button" data-nav-view="projects"><span class="nav-indicator"></span><span class="ico" data-ico="layers"></span><span>Projects</span></button>
+      <button class="nav-item" type="button" data-nav-view="issues"><span class="nav-indicator"></span><span class="ico" data-ico="alert"></span><span>Issues</span></button>
+    </div>
+    <div class="nav-group nav-management">
+      <span class="nav-group-label">Management</span>
+      <button class="nav-item" type="button" data-nav-view="inspections"><span class="nav-indicator"></span><span class="ico" data-ico="check-circle"></span><span>Inspections</span></button>
+      <button class="nav-item" type="button" data-nav-view="reports"><span class="nav-indicator"></span><span class="ico" data-ico="clipboard"></span><span>Reports</span></button>
+      <button class="nav-item need-manage" type="button" data-nav-view="approvals"><span class="nav-indicator"></span><span class="ico" data-ico="shield"></span><span>Approvals</span></button>
+    </div>
+    <div class="nav-group nav-communication">
+      <span class="nav-group-label">Communication</span>
+      <button class="nav-item" type="button" data-nav-view="messages"><span class="nav-indicator"></span><span class="ico" data-ico="message"></span><span>Messages</span><small class="nav-count">3</small></button>
+      <button class="nav-item" type="button" data-nav-view="team"><span class="nav-indicator"></span><span class="ico" data-ico="users"></span><span>Team</span></button>
+    </div>
+  </nav>
+  <div class="sidebar-foot"><span class="sidebar-avatar">SP</span><span><strong>SitePunch</strong><small>Construction OS</small></span></div>
+</aside>
+
 <header class="app-header">
   <div class="brand">
-    <span class="brand-mark" id="brandMark"></span>
+    <button class="brand-mark logo-replay" type="button" data-replay-intro aria-label="Replay SitePunch introduction"><img src="assets/sitepunch-logo.png" alt="SitePunch"></button>
     <div class="brand-text">
-      <h1>Site Punch List</h1>
-      <span class="subtitle">Track unfinished work &middot; document &middot; escalate</span>
+      <span class="subtitle">From defect to done.</span>
     </div>
   </div>
   <div class="header-actions">
     <button id="darkToggle" class="btn btn-ghost" aria-label="Toggle dark mode"><span class="ico" data-ico="moon"></span><span class="btn-label">Dark</span></button>
     <button id="exportPdfBtn" class="btn btn-outline"><span class="ico" data-ico="download"></span><span class="btn-label">Export PDF</span></button>
-    <button id="addItemBtn" class="btn btn-primary need-add"><span class="ico" data-ico="plus"></span><span class="btn-label">Add Item</span></button>
+    <button id="addItemBtn" class="btn btn-primary need-add"><span class="ico" data-ico="plus"></span><span class="btn-label">Punch Issue</span></button>
     <div class="menu-wrap">
       <button id="moreBtn" class="btn btn-ghost icon-only" aria-label="More options" aria-haspopup="true" aria-expanded="false"><span class="ico" data-ico="more"></span></button>
       <div class="menu" id="moreMenu" role="menu" hidden>
@@ -126,33 +185,39 @@
 
 <section class="project-banner" id="projectBanner"></section>
 
+<section class="nav-page" id="navPage" hidden aria-live="polite"></section>
+
 <section class="dashboard" id="dashboard"></section>
 
 <section class="toolbar">
   <div class="search-wrap">
     <span class="ico search-ico" data-ico="search"></span>
-    <input type="text" id="searchInput" placeholder="Search room, description, or contact…" aria-label="Search">
+    <input type="text" id="searchInput" placeholder="Search issues…" aria-label="Search issues">
   </div>
 
   <div class="filters">
-    <div class="select-wrap"><select id="filterRoom" aria-label="Filter by room"><option value="">All Rooms</option></select></div>
+    <div class="select-wrap"><select id="filterRoom" aria-label="Filter by project or location"><option value="">Project</option></select></div>
     <div class="select-wrap"><select id="filterType" aria-label="Filter by job type">
-      <option value="">All Job Types</option>
+      <option value="">Trade</option>
       <option>General Construction</option>
       <option>Painting</option>
       <option>Electrical</option>
-      <option>Camera</option>
       <option>Plumbing</option>
+      <option>HVAC</option>
+      <option>Joinery</option>
+      <option>Civil Works</option>
+      <option>Camera</option>
       <option>Others</option>
     </select></div>
     <div class="select-wrap"><select id="filterStatus" aria-label="Filter by status">
-      <option value="">All Status</option>
-      <option>Not Done</option>
-      <option>Partially Done</option>
-      <option>Completed</option>
+      <option value="">Status</option>
+      <option value="Not Done">Open</option>
+      <option value="Partially Done">In Progress</option>
+      <option value="Ready for Inspection">Ready for Inspection</option>
+      <option value="Completed">Closed</option>
     </select></div>
     <div class="select-wrap"><select id="filterPriority" aria-label="Filter by priority">
-      <option value="">All Priority</option>
+      <option value="">Priority</option>
       <option>High</option>
       <option>Medium</option>
       <option>Low</option>
@@ -190,6 +255,21 @@
   <button class="btn btn-outline" id="clearFiltersBtn2"><span class="btn-label">Clear filters</span></button>
 </div>
 
+<!-- Mobile primary action -->
+<button id="mobilePunchBtn" class="mobile-punch-fab need-add" type="button"><span class="ico" data-ico="plus"></span><span>Punch Issue</span></button>
+<div id="mobileActionSheet" class="action-sheet-overlay" hidden>
+  <div class="action-sheet" role="dialog" aria-modal="true" aria-labelledby="actionSheetTitle">
+    <div class="action-sheet-handle"></div>
+    <div class="action-sheet-head"><div><span class="sheet-kicker">New site record</span><h2 id="actionSheetTitle">Punch an issue</h2></div><button id="closeActionSheet" class="icon-btn" type="button" aria-label="Close"><span class="ico" data-ico="x"></span></button></div>
+    <div class="action-grid">
+      <button type="button" data-mobile-action="camera"><span class="action-ico"><span class="ico" data-ico="camera"></span></span><strong>Take Photo</strong><small>Use site camera</small></button>
+      <button type="button" data-mobile-action="upload"><span class="action-ico"><span class="ico" data-ico="upload"></span></span><strong>Upload Photo</strong><small>Choose existing media</small></button>
+      <button type="button" data-mobile-action="qr"><span class="action-ico"><span class="ico" data-ico="layers"></span></span><strong>QR Location</strong><small>Set area quickly</small></button>
+      <button type="button" data-mobile-action="manual"><span class="action-ico"><span class="ico" data-ico="edit"></span></span><strong>Add Manually</strong><small>Enter issue details</small></button>
+    </div>
+  </div>
+</div>
+
 <!-- Add/Edit Modal -->
 <div id="itemModal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
   <div class="modal">
@@ -217,8 +297,11 @@
           <option>General Construction</option>
           <option>Painting</option>
           <option>Electrical</option>
-          <option>Camera</option>
           <option>Plumbing</option>
+          <option>HVAC</option>
+          <option>Joinery</option>
+          <option>Civil Works</option>
+          <option>Camera</option>
           <option>Others</option>
         </select></div>
         <input type="text" id="itemTypeOther" placeholder="Describe the work type" style="display:none; margin-top:8px;">
@@ -227,10 +310,16 @@
       <div class="field">
         <label>Status</label>
         <div class="segmented" id="statusSeg" role="group" aria-label="Status">
-          <button type="button" data-val="Not Done" class="seg seg-status status-Not-Done">Not Done</button>
-          <button type="button" data-val="Partially Done" class="seg seg-status status-Partially-Done">Partially Done</button>
-          <button type="button" data-val="Completed" class="seg seg-status status-Completed">Completed</button>
+          <button type="button" data-val="Not Done" class="seg seg-status status-Not-Done">Open</button>
+          <button type="button" data-val="Partially Done" class="seg seg-status status-Partially-Done">In Progress</button>
+          <button type="button" data-val="Ready for Inspection" class="seg seg-status status-Ready-for-Inspection">Inspection</button>
+          <button type="button" data-val="Completed" class="seg seg-status status-Completed">Closed</button>
         </div>
+      </div>
+
+      <div class="field modal-workflow-field">
+        <label>Issue workflow</label>
+        <div id="modalWorkflowRail"></div>
       </div>
 
       <div class="field">
@@ -273,9 +362,9 @@
       </div>
 
       <div class="field">
-        <label>Activity / Escalation Log</label>
+        <label>Signed Issue Updates <span class="hint-inline">immutable activity log</span></label>
         <div class="history-add-row">
-          <input type="text" id="historyNoteInput" placeholder="Add a dated note (e.g. 'Emailed contractor again')">
+          <input type="text" id="historyNoteInput" placeholder="Add a work update, inspection note, or follow-up">
           <button id="addHistoryBtn" class="btn btn-outline" type="button"><span class="ico" data-ico="plus"></span></button>
         </div>
         <ul class="history-list" id="historyList"></ul>
@@ -402,8 +491,8 @@
 <div id="printArea" class="print-area"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js"></script>
-<script src="backend.js"></script>
-<script src="app.js"></script>
+<script src="config.js?v=6"></script>
+<script src="backend.js?v=6"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

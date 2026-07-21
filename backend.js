@@ -6,6 +6,9 @@
 (function(){
   const CFG = window.PUNCHLIST_CONFIG || {};
   const SUPER_ADMIN_EMAIL = (CFG.SUPER_ADMIN_EMAIL||'').trim().toLowerCase();
+  const DEMO_MODE = new URLSearchParams(window.location.search).get('demo') === '1';
+  const DEMO_EMAIL = 'demo@sitepunch.local';
+  const DEMO_PASSWORD = 'SitePunch123!';
 
   /* cloud credentials: in-app (localStorage) overrides config.js */
   function cloudCreds(){
@@ -14,7 +17,7 @@
     return null;
   }
   const CREDS = cloudCreds();
-  const USE_SUPABASE = !!(CREDS && /^https?:\/\//.test(CREDS.url));
+  const USE_SUPABASE = !DEMO_MODE && !!(CREDS && /^https?:\/\//.test(CREDS.url));
   window.BACKEND_MODE = USE_SUPABASE ? 'cloud' : 'local';
 
   /* ---------- configurable capabilities (super-admin editable) ---------- */
@@ -97,6 +100,21 @@
     return {
       async init(){
         await open(); await migrateLegacy();
+        if(DEMO_MODE && !(await get('users',DEMO_EMAIL))){
+          const s=salt();
+          await put('users',{ email:DEMO_EMAIL, salt:s, hash:await sha(s+DEMO_PASSWORD), superAdmin:true, createdAt:Date.now() });
+        }
+        if(DEMO_MODE && !(await get('projects','p_demo_sitepunch'))){
+          const today=new Date(), iso=n=>{ const d=new Date(today); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
+          await put('projects',{ id:'p_demo_sitepunch', code:'DEMO26', name:'Marina Residence', villa:'Tower A', location:'Dubai Marina, UAE', client:'SitePunch Demo Client', preparedBy:'Site Team', date:iso(0), ref:'SP-DEMO-001', photos:[], createdAt:Date.now() });
+          const demoItems=[
+            {id:'demo_1',room:'Level 2 / Room 201',description:'Wall paint damaged',type:'Painting',status:'Not Done',priority:'High',contact:'Perfect Paint Co.',expectedDate:iso(-2)},
+            {id:'demo_2',room:'Level 2 / Corridor',description:'Electrical containment requires finishing',type:'Electrical',status:'Partially Done',priority:'Medium',contact:'BuildTech MEP',expectedDate:iso(3)},
+            {id:'demo_3',room:'Level 3 / Main Hall',description:'Joinery alignment ready for inspection',type:'Joinery',status:'Ready for Inspection',priority:'Low',contact:'Craftline Joinery',expectedDate:iso(5)},
+            {id:'demo_4',room:'Roof / Plant Area',description:'HVAC access panel rectified',type:'HVAC',status:'Completed',priority:'Low',contact:'CoolFlow Services',expectedDate:iso(-1)}
+          ];
+          for(const item of demoItems) await put('items',{...item,projectId:'p_demo_sitepunch',beforePhotos:[],afterPhotos:[],history:[],createdAt:Date.now(),updatedAt:Date.now()});
+        }
         try{ const s=JSON.parse(localStorage.getItem(SKEY)||'null'); if(s&&s.email) _user=s; }catch(e){}
         if(_user){ const u=await get('users',_user.email); if(!u) _user=null; else _user={email:u.email,superAdmin:!!u.superAdmin}; }
       },
